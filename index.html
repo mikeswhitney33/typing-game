@@ -292,7 +292,7 @@
             loop()
         }
         const start = () => {
-            fetch("/words.txt").then((response) => {
+            fetch("/typing-game/words.txt").then((response) => {
                 return response.text()
             }).then(words => {
                 init(words.split("\n"))
