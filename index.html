@@ -59,7 +59,8 @@
             let state = START_STATE;
             const SHARK_HEIGHT = 30
             const SHARK_WIDTH = 60
-            let sharkSpeed = 50
+            const INITIAL_SHARK_SPEED = 50
+            let sharkSpeed = INITIAL_SHARK_SPEED
             const SHARK_SPEEDUP_RATE = 5
             const SHARK_PADDING_X = 10
             const SHARK_PADDING_Y = 5
@@ -116,6 +117,7 @@
                     state = PLAY_STATE
                     score = 0
                     lives = 3
+                    sharkSpeed = INITIAL_SHARK_SPEED
                 }
 
             })
