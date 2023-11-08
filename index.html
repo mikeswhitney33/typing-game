@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div style="display: none;">
+        <img src="/images/shark-head.png" id="shark-head" width="40" height="40" />
+        <img src="/images/shark-tail.png" id="shark-tail" width="40" height="40" />
+        <img src="/images/shark-fin.png" id="shark-fin" width="40" height="40" />
+        <img src="/images/heart.png" id="heart" width="40" height="40" />
+    </div>
+    <script>
+        let state = "starting-menu"
+        const loaded = {
+            "shark-head": {
+                "img": document.getElementById("shark-head"),
+                "loaded": false,
+            },
+            "shark-tail": {
+                "img": document.getElementById("shark-tail"),
+                "loaded": false
+            },
+            "shark-fin": {
+                "img": document.getElementById("shark-fin"),
+                "loaded": false
+            },
+            "heart": {
+                "img": document.getElementById("heart"),
+                "loaded": false
+            }
+        }
+        const isAllLoaded = () => {
+            for (const asset of Object.values(loaded)) {
+                if (!asset.loaded) {
+                    return false
+                }
+            }
+            return true
+        }
+
+        const init = (wordlist) => {
+            const START_STATE = "starting-menu"
+            const PLAY_STATE = "playing"
+            const GAMEOVER_STATE = "gameover"
+            let state = START_STATE;
+            const SHARK_HEIGHT = 30
+            const SHARK_WIDTH = 60
+            let sharkSpeed = 50
+            const SHARK_SPEEDUP_RATE = 5
+            const SHARK_PADDING_X = 10
+            const SHARK_PADDING_Y = 5
+            const SHARK_COLOR = "#93a3ac"
+            const MAX_BUBBLE_RADIUS = 10
+            const MIN_BUBBLE_RADIUS = 3
+            const MAX_BUBBLE_SPEED = 50
+            const MIN_BUBBLE_SPEED = 10
+            const MIN_BUBBLE_AMPLITUDE = 3
+            const MAX_BUBBLE_AMPLITUDE = 7
+            const WORD_COLOR = "white"
+            const TYPED_COLOR = "#20EC48"
+            let sharkSpawnInterval = 3
+            let bubbleSpawnInterval = 2
+            let speedupInterval = 10
+            let score = 0
+            let best = window.localStorage.getItem("best")
+            if (best === null) {
+                best = 0
+            }
+            else {
+                best = parseInt(best)
+            }
+            let lives = 3
+
+            const canvas = document.createElement("canvas")
+            canvas.width = window.innerWidth
+            canvas.height = window.innerHeight
+            document.body.appendChild(canvas)
+            const context = canvas.getContext("2d")
+
+            let sharks = []
+            let bubbles = []
+
+            document.body.addEventListener("keypress", event => {
+                if (state === PLAY_STATE) {
+                    sharks = sharks.filter((shark) => {
+                        if (shark.word[shark.typed.length] === event.key) {
+                            shark.typed = shark.typed + event.key
+                        }
+                        else {
+                            shark.typed = ""
+                        }
+                        const ret = shark.word !== shark.typed;
+                        if (!ret) {
+                            score++;
+                            best = Math.max(best, score)
+                            window.localStorage.setItem("best", String(best))
+                        }
+                        return ret
+                    })
+                }
+                if ([START_STATE, GAMEOVER_STATE].includes(state)) {
+                    state = PLAY_STATE
+                    score = 0
+                    lives = 3
+                }
+
+            })
+
+            const spawnNewShark = () => {
+                sharks.push({
+                    pos: {
+                        x: canvas.width,
+                        y: Math.random() * (canvas.height - (SHARK_HEIGHT + 50)) + 50
+                    },
+                    word: wordlist[Math.floor(Math.random() * wordlist.length)],
+                    typed: ""
+                })
+            }
+
+            const spawnNewBubble = () => {
+                bubbles.push({
+                    pos: {
+                        x: Math.random() * (canvas.width),
+                        y: canvas.height,
+                    },
+                    r: Math.random() * (MAX_BUBBLE_RADIUS - MIN_BUBBLE_RADIUS) + MIN_BUBBLE_RADIUS,
+                    s: Math.random() * (MAX_BUBBLE_SPEED - MIN_BUBBLE_SPEED) + MIN_BUBBLE_SPEED,
+                    a: Math.random() * (MAX_BUBBLE_AMPLITUDE - MIN_BUBBLE_AMPLITUDE) + MIN_BUBBLE_AMPLITUDE
+                })
+            }
+
+
+            let sharkTimer = 0
+            let bubbleTimer = 0
+            let speedupTimer = 0
+            const update = (deltaTime) => {
+                if (state === PLAY_STATE) {
+                    sharks = sharks.filter((shark) => {
+                        shark.pos.x -= sharkSpeed * deltaTime;
+                        const ret = shark.pos.x >= 0
+
+                        if (!ret) {
+                            lives = Math.max(0, lives - 1)
+                            if (lives === 0) {
+                                state = GAMEOVER_STATE
+                            }
+                        }
+
+                        return ret
+                    })
+                    sharkTimer += deltaTime;
+                    if (sharkTimer > sharkSpawnInterval) {
+                        spawnNewShark()
+                        sharkTimer = 0
+                    }
+                }
+                else {
+                    sharks = []
+                }
+
+                bubbles = bubbles.filter(bubble => {
+                    bubble.pos.y -= bubble.s * deltaTime;
+                    bubble.pos.x = bubble.pos.x + Math.sin(bubble.pos.y * 0.25)
+                    return bubble.pos.y >= 0
+                })
+                bubbleTimer += deltaTime
+                if (bubbleTimer > bubbleSpawnInterval) {
+                    spawnNewBubble()
+                    bubbleTimer = 0
+                }
+
+                speedupTimer += deltaTime
+                if (speedupTimer > speedupInterval) {
+                    sharkSpeed += SHARK_SPEEDUP_RATE
+                    speedupTimer = 0
+                }
+            }
+
+            const draw = () => {
+                context.fillStyle = "#4f42b5"
+                context.fillRect(0, 0, canvas.width, canvas.height);
+
+                for (const bubble of bubbles) {
+                    context.strokeStyle = "#f3fafc"
+                    context.beginPath()
+                    context.arc(bubble.pos.x, bubble.pos.y, bubble.r, 0, 2 * Math.PI)
+                    context.stroke()
+                }
+
+                for (const shark of sharks) {
+                    context.font = "18pt sans-serif"
+                    context.textBaseline = "middle"
+                    const textsize = context.measureText(shark.word)
+
+
+                    context.fillStyle = SHARK_COLOR;
+                    context.fillRect(
+                        shark.pos.x,
+                        shark.pos.y,
+                        textsize.width + SHARK_PADDING_X * 2,
+                        SHARK_HEIGHT + SHARK_PADDING_Y * 2
+                    );
+
+                    context.fillStyle = WORD_COLOR;
+                    context.fillText(
+                        shark.word,
+                        shark.pos.x + SHARK_PADDING_X,
+                        shark.pos.y + SHARK_HEIGHT / 2 + SHARK_PADDING_Y
+                    )
+                    context.fillStyle = TYPED_COLOR;
+                    context.fillText(
+                        shark.typed,
+                        shark.pos.x + SHARK_PADDING_X,
+                        shark.pos.y + SHARK_HEIGHT / 2 + SHARK_PADDING_Y
+                    )
+                    context.drawImage(loaded["shark-head"].img, shark.pos.x - 39, shark.pos.y)
+                    context.drawImage(
+                        loaded["shark-tail"].img,
+                        shark.pos.x + textsize.width + SHARK_PADDING_X * 2 - 1,
+                        shark.pos.y
+                    )
+                    context.drawImage(loaded["shark-fin"].img, shark.pos.x + textsize.width / 2 - 10, shark.pos.y - 39)
+                }
+
+                const text = `Best: ${best} Score: ${score}`
+                // const text = `Score: ${score}`
+                context.fillStyle = "white"
+                context.font = "32pt sans-serif"
+                context.textBaseline = "top"
+                const textsize = context.measureText(text)
+                context.fillText(text, canvas.width - textsize.width - 10, 10)
+
+                for (let i = 0; i < lives; i++) {
+                    context.drawImage(loaded["heart"].img, 10 + i * (40 + 10), 10)
+                }
+
+                if (state === START_STATE) {
+                    // start menu
+                    context.fillStyle = "white"
+                    context.font = "72pt sans-serif"
+                    let text = "Welcome!"
+                    let textsize = context.measureText(text)
+                    context.fillText(text, canvas.width / 2 - textsize.width / 2, canvas.height / 2)
+                    context.font = "16pt sans-serif"
+                    text = "Press \"Space\" to start!"
+                    textsize = context.measureText(text)
+                    context.fillText(text, canvas.width / 2 - textsize.width / 2, canvas.height * 3 / 4)
+                }
+                if (state === GAMEOVER_STATE) {
+                    // game over menu
+                    context.fillStyle = "white"
+                    context.font = "72pt sans-serif"
+                    let text = "Game Over! "
+                    let textsize = context.measureText(text)
+                    context.fillText(text, canvas.width / 2 - textsize.width / 2, canvas.height / 2)
+                    context.font = "16pt sans-serif"
+                    text = "Press \"Space\" to replay!"
+                    textsize = context.measureText(text)
+                    context.fillText(text, canvas.width / 2 - textsize.width / 2, canvas.height * 3 / 4)
+                }
+            }
+            const interval = 1000 / 30;
+            let then = Date.now()
+            let now, elapsed
+            const startTime = then;
+
+            const loop = () => {
+                requestAnimationFrame(loop)
+                now = Date.now()
+                elapsed = now - then
+                if (elapsed > interval) {
+                    then = now - (elapsed % interval)
+                    update(elapsed / 1000)
+                    draw()
+                }
+            }
+            spawnNewShark()
+            loop()
+        }
+        const start = () => {
+            fetch("/words.txt").then((response) => {
+                return response.text()
+            }).then(words => {
+                init(words.split("\n"))
+            })
+        }
+
+        const onLoad = (id) => {
+            loaded[id].loaded = true
+            if (isAllLoaded()) {
+                start()
+            }
+        }
+        for (const [id, item] of Object.entries(loaded)) {
+            item.img.addEventListener("load", () => { onLoad(id) });
+        }
+
+    </script>
+</body>
+
+</html>
